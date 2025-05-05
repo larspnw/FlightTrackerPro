@@ -52,6 +52,14 @@ def add_flight():
                 'error': 'Flight is already being tracked'
             }), 400
         
+        # Check if we've reached the limit of 3 flights
+        flight_count = SavedFlight.query.count()
+        if flight_count >= 3:
+            return jsonify({
+                'success': False,
+                'error': 'Maximum limit of 3 flights reached. Remove a flight to add a new one.'
+            }), 400
+        
         # Get flight data from API
         flight_data = get_flight_data(flight_number)
         if not flight_data or 'error' in flight_data:

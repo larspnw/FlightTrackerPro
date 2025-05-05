@@ -58,13 +58,17 @@
                                             id="flightNumber"
                                             placeholder="e.g., BA123"
                                         >
-                                        <button class="btn btn-primary" type="submit">
+                                        <button class="btn btn-primary" type="submit" id="addFlightBtn">
                                             <i class="fas fa-plus"></i>
                                         </button>
                                     </div>
                                     <small class="form-text text-muted">
                                         Enter the airline code and flight number (e.g., BA123, DL4567)
                                     </small>
+                                    <div class="mt-2">
+                                        <span class="badge bg-info" id="flightCounter">0/3 Flights</span>
+                                        <small class="ms-2 text-muted">Maximum 3 flights can be tracked at once</small>
+                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -179,6 +183,20 @@
                     if (data.success) {
                         const flightsList = document.getElementById('flightsList');
                         const emptyState = document.querySelector('.empty-state');
+                        const flightCounter = document.getElementById('flightCounter');
+                        const addFlightBtn = document.getElementById('addFlightBtn');
+                        
+                        // Update flight counter
+                        flightCounter.textContent = `${data.flights.length}/3 Flights`;
+                        
+                        // Disable add button if we already have 3 flights
+                        if (data.flights.length >= 3) {
+                            addFlightBtn.disabled = true;
+                            addFlightBtn.title = "Maximum limit reached (3 flights)";
+                        } else {
+                            addFlightBtn.disabled = false;
+                            addFlightBtn.title = "";
+                        }
                         
                         if (data.flights.length > 0) {
                             flightsList.style.display = 'block';
@@ -193,9 +211,17 @@
                                     <div>
                                         <strong>${flight.flight_number}</strong>
                                     </div>
-                                    <button class="btn btn-sm btn-outline-danger remove-flight">
-                                        <i class="fas fa-times"></i>
-                                    </button>
+                                    <div>
+                                        <a href="https://flightaware.com/live/flight/${flight.flight_number}" 
+                                           class="btn btn-sm btn-outline-info me-1" 
+                                           target="_blank" 
+                                           title="View on FlightAware">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger remove-flight">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
                                 `;
                                 li.addEventListener('click', function(e) {
                                     if (!e.target.closest('.remove-flight')) {
