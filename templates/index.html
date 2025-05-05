@@ -412,6 +412,12 @@
                                 flightCard.remove();
                             }
                             
+                            // Reset selectFlight if we've just removed the active flight
+                            const activeCard = document.querySelector('.flight-card.active');
+                            if (activeCard && activeCard.dataset.flightNumber === flightNumber) {
+                                document.getElementById('emptyState').style.display = 'block';
+                            }
+                            
                             // Refresh the flights list
                             fetchFlights();
                         } else {
