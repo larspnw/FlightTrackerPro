@@ -207,9 +207,43 @@
                                 const li = document.createElement('li');
                                 li.className = 'list-group-item flight-card d-flex justify-content-between align-items-center';
                                 li.dataset.flightNumber = flight.flight_number;
+                                
+                                // Get status class
+                                function getStatusClass(status) {
+                                    if (!status) return 'text-secondary';
+                                    const statusLower = status.toLowerCase();
+                                    if (statusLower.includes('scheduled')) return 'text-primary';
+                                    if (statusLower.includes('active') || statusLower.includes('en-route')) return 'text-success';
+                                    if (statusLower.includes('landed')) return 'text-info';
+                                    if (statusLower.includes('cancelled')) return 'text-danger';
+                                    if (statusLower.includes('delayed')) return 'text-warning';
+                                    if (statusLower.includes('diverted')) return 'text-warning';
+                                    return 'text-secondary';
+                                }
+                                
+                                // Get status icon
+                                function getStatusIcon(status) {
+                                    if (!status) return 'question-circle';
+                                    const statusLower = status.toLowerCase();
+                                    if (statusLower.includes('scheduled')) return 'calendar-check';
+                                    if (statusLower.includes('active') || statusLower.includes('en-route')) return 'plane';
+                                    if (statusLower.includes('landed')) return 'check-circle';
+                                    if (statusLower.includes('cancelled')) return 'times-circle';
+                                    if (statusLower.includes('delayed')) return 'clock';
+                                    if (statusLower.includes('diverted')) return 'exclamation-triangle';
+                                    return 'question-circle';
+                                }
+                                
+                                const statusClass = getStatusClass(flight.status);
+                                const statusIcon = getStatusIcon(flight.status);
+                                
                                 li.innerHTML = `
                                     <div>
                                         <strong>${flight.flight_number}</strong>
+                                        <div class="small ${statusClass}">
+                                            <i class="fas fa-${statusIcon} me-1"></i>
+                                            ${flight.status || 'Unknown'}
+                                        </div>
                                     </div>
                                     <div>
                                         <a href="https://flightaware.com/live/flight/${flight.flight_number}" 
@@ -367,6 +401,18 @@
                 const arrivalDelay = calculateDelay(flight.scheduled_arrival, flight.actual_arrival);
                 const statusClass = getStatusClass(flight.status);
                 
+                // Check if we have map coordinates
+                const hasMapData = flight.departure_lat && flight.departure_lon && 
+                                  flight.arrival_lat && flight.arrival_lon;
+                
+                // Show/hide map container based on available data
+                const mapContainer = document.getElementById('mapContainer');
+                if (hasMapData) {
+                    mapContainer.style.display = 'block';
+                } else {
+                    mapContainer.style.display = 'none';
+                }
+                
                 // Update flight details
                 flightDetailsDiv.innerHTML = `
                     <div class="row">
@@ -381,6 +427,7 @@
                                         <i class="fas fa-circle me-1"></i>
                                         ${flight.status || 'Unknown Status'}
                                     </div>
+                                    ${!hasMapData ? '<div class="text-muted small mt-1"><i class="fas fa-info-circle"></i> Map unavailable: No coordinate data</div>' : ''}
                                 </div>
                                 <div class="text-end">
                                     <div>
