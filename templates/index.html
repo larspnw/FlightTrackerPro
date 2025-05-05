@@ -678,25 +678,7 @@
                 });
             }
             
-            // Refresh flight function
-            document.getElementById('refreshFlightButton').addEventListener('click', function() {
-                const activeFlightCard = document.querySelector('.flight-card.active');
-                if (activeFlightCard) {
-                    const flightNumber = activeFlightCard.dataset.flightNumber;
-                    fetch(`/api/flights/update/${flightNumber}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            displayFlightDetails(data.flight);
-                        } else {
-                            alert('Error: ' + (data.error || 'Failed to update flight data'));
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error refreshing flight:', error);
-                    });
-                }
-            });
+            // Single flight refresh is now handled by the refreshSingleFlight function
             
             // Refresh all flights function
             document.getElementById('refreshButton').addEventListener('click', function() {
