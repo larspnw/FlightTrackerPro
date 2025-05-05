@@ -167,6 +167,10 @@
                     if (data.success) {
                         document.getElementById('flightNumber').value = '';
                         fetchFlights();
+                        // Make sure we display the new flight's details
+                        setTimeout(() => {
+                            selectFlight(data.flight.flight_number);
+                        }, 500);
                     } else {
                         alert('Error: ' + (data.error || 'Failed to add flight'));
                     }
@@ -437,11 +441,19 @@
                                 flightCard.remove();
                             }
                             
-                            // Reset selectFlight if we've just removed the active flight
+                            // Reset selectFlight if we've just removed the active flight and clean up any lingering flight cards
                             const activeCard = document.querySelector('.flight-card.active');
                             if (activeCard && activeCard.dataset.flightNumber === flightNumber) {
                                 document.getElementById('emptyState').style.display = 'block';
                             }
+
+                            // Make sure to clear any existing flight cards for this flight number
+                            const allCards = document.querySelectorAll(`.flight-detail-card`);
+                            allCards.forEach(card => {
+                                if (card.id === `flight-card-${flightNumber}`) {
+                                    card.remove();
+                                }
+                            });
                             
                             // Refresh the flights list
                             fetchFlights();
