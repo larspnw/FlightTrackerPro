@@ -326,9 +326,14 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
+                            // Remove the flight's detail card if it exists
+                            const flightCard = document.getElementById(`flight-card-${flightNumber}`);
+                            if (flightCard) {
+                                flightCard.remove();
+                            }
+                            
+                            // Refresh the flights list
                             fetchFlights();
-                            document.getElementById('emptyState').style.display = 'block';
-                            document.getElementById('flightDetailsCard').style.display = 'none';
                         } else {
                             alert('Error: ' + (data.error || 'Failed to remove flight'));
                         }
@@ -825,10 +830,11 @@
                     
                     // Fit map bounds
                     map.fitBounds(latlngs, { padding: [50, 50], maxZoom: 10 });
-                } else if (flight.departure_lat && flight.departure_lon) {
-                    map.setView([flight.departure_lat, flight.departure_lon], 6);
-                } else if (flight.arrival_lat && flight.arrival_lon) {
-                    map.setView([flight.arrival_lat, flight.arrival_lon], 6);
+                    
+                    // Check for alternative views if we have partial data
+                    if (flight.current_lat && flight.current_lon) {
+                        map.setView([flight.current_lat, flight.current_lon], 6);
+                    }
                 }
             }
             
