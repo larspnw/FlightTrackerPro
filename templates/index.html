@@ -41,10 +41,16 @@
         </header>
         
         <div class="row g-4">
-            <div class="col-md-4">
+            <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Tracked Flights</h5>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Flight Tracker Control Panel</h5>
+                        <div class="d-flex align-items-center">
+                            <div class="form-check form-switch me-3">
+                                <input class="form-check-input" type="checkbox" id="mapToggle" checked>
+                                <label class="form-check-label" for="mapToggle">Show Map</label>
+                            </div>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="flight-form">
@@ -72,7 +78,6 @@
                                 </div>
                             </form>
                         </div>
-                        <hr />
                         <div class="flight-list">
                             <div class="empty-state">
                                 <p>No flights added yet</p>
@@ -86,27 +91,16 @@
                 </div>
             </div>
             
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-body empty-state" id="emptyState">
-                        <i class="fas fa-plane"></i>
-                        <h3>No Flight Selected</h3>
-                        <p>Add a flight or select one from the list to view its details.</p>
-                    </div>
-                    <div class="card" id="flightDetailsCard" style="display: none;">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Flight Details</h5>
-                            <button class="btn btn-sm btn-outline-secondary" id="refreshFlightButton">
-                                <i class="fas fa-sync-alt"></i> Refresh
-                            </button>
-                        </div>
-                        <div class="card-body">
-                            <div class="map-container mb-4" id="mapContainer"></div>
-                            <div class="flight-details" id="flightDetails">
-                                <!-- Flight details will be displayed here -->
-                            </div>
+            <div class="col-12">
+                <div id="allFlightsContainer">
+                    <div class="card empty-state" id="emptyState">
+                        <div class="card-body text-center py-5">
+                            <i class="fas fa-plane fa-3x mb-3"></i>
+                            <h3>No Flights Added</h3>
+                            <p>Add flights using the form above to view their details here.</p>
                         </div>
                     </div>
+                    <!-- All flight detail cards will be inserted here -->
                 </div>
             </div>
         </div>
@@ -175,6 +169,14 @@
                 });
             }
             
+            // Map toggle functionality
+            document.getElementById('mapToggle').addEventListener('change', function() {
+                const mapContainers = document.querySelectorAll('.map-container');
+                mapContainers.forEach(container => {
+                    container.style.display = this.checked ? 'block' : 'none';
+                });
+            });
+            
             // Fetch flights function
             function fetchFlights() {
                 fetch('/api/flights')
@@ -201,6 +203,9 @@
                         if (data.flights.length > 0) {
                             flightsList.style.display = 'block';
                             emptyState.style.display = 'none';
+                            
+                            // Update all flight details
+                            updateAllFlightDetails(data.flights);
                             
                             flightsList.innerHTML = '';
                             data.flights.forEach(flight => {
@@ -334,14 +339,56 @@
                 }
             }
             
-            // Display flight details function
-            function displayFlightDetails(flight) {
+            // Update all flight details function
+            function updateAllFlightDetails(flights) {
+                const allFlightsContainer = document.getElementById('allFlightsContainer');
                 const emptyState = document.getElementById('emptyState');
-                const flightDetailsCard = document.getElementById('flightDetailsCard');
-                const flightDetailsDiv = document.getElementById('flightDetails');
+                
+                if (flights.length === 0) {
+                    emptyState.style.display = 'block';
+                    return;
+                }
                 
                 emptyState.style.display = 'none';
-                flightDetailsCard.style.display = 'block';
+                allFlightsContainer.innerHTML = '';
+                
+                flights.forEach(flightInfo => {
+                    fetch(`/api/flights/details/${flightInfo.flight_number}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            addFlightDetailCard(data.flight);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching flight details:', error);
+                    });
+                });
+            }
+            
+            // Create a single flight detail card
+            function addFlightDetailCard(flight) {
+                const allFlightsContainer = document.getElementById('allFlightsContainer');
+                const flightCard = document.createElement('div');
+                flightCard.className = 'card mb-4 flight-detail-card';
+                flightCard.id = `flight-card-${flight.flight_number}`;
+                
+                // Create map container ID specific to this flight
+                const mapContainerId = `map-container-${flight.flight_number}`;
+                
+                // Add card content
+                flightCard.innerHTML = createFlightDetailCardContent(flight, mapContainerId);
+                
+                // Add to container
+                allFlightsContainer.appendChild(flightCard);
+                
+                // Initialize map for this flight if coordinates are available
+                initFlightMap(flight, mapContainerId);
+            }
+            
+            // Display flight details function (now used for highlighting selected flight in the list)
+            function displayFlightDetails(flight) {
+                // This function is kept for compatibility but no longer shows/hides cards
                 
                 // Format date function
                 function formatDateTime(dateTimeStr) {
@@ -530,15 +577,206 @@
                     </div>
                 `;
                 
-                // Update map
-                if (!map) {
-                    initMap();
-                } else {
-                    map.remove();
-                    initMap();
+                // Refresh the flight detail card if it exists
+                const existingCard = document.getElementById(`flight-card-${flight.flight_number}`);
+                if (existingCard) {
+                    // Update with fresh data
+                    const mapContainerId = `map-container-${flight.flight_number}`;
+                    existingCard.innerHTML = createFlightDetailCardContent(flight, mapContainerId);
+                    initFlightMap(flight, mapContainerId);
+                }
+            }
+            
+            // Create flight detail card content
+            function createFlightDetailCardContent(flight, mapContainerId) {
+                // Format date function
+                function formatDateTime(dateTimeStr) {
+                    if (!dateTimeStr) return 'N/A';
+                    const date = new Date(dateTimeStr);
+                    const options = { 
+                        weekday: 'short',
+                        day: 'numeric', 
+                        month: 'short', 
+                        year: 'numeric',
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        timeZoneName: 'short'
+                    };
+                    return date.toLocaleString('en-US', options);
                 }
                 
-                if (map && flight.departure_lat && flight.departure_lon && flight.arrival_lat && flight.arrival_lon) {
+                // Calculate and format delay
+                function calculateDelay(scheduled, actual) {
+                    if (!scheduled || !actual) return null;
+                    const scheduledDate = new Date(scheduled);
+                    const actualDate = new Date(actual);
+                    return Math.round((actualDate - scheduledDate) / (1000 * 60));
+                }
+                
+                function formatDelay(delayMinutes) {
+                    if (delayMinutes === null) return '';
+                    if (delayMinutes <= 0) {
+                        return '<span class="text-success">On time</span>';
+                    }
+                    const hours = Math.floor(delayMinutes / 60);
+                    const minutes = delayMinutes % 60;
+                    let delayText = '';
+                    if (hours > 0) {
+                        delayText += `${hours}h `;
+                    }
+                    if (minutes > 0 || hours === 0) {
+                        delayText += `${minutes}m`;
+                    }
+                    return `<span class="text-warning">Delayed by ${delayText}</span>`;
+                }
+                
+                // Get status class
+                function getStatusClass(status) {
+                    if (!status) return 'text-secondary';
+                    const statusLower = status.toLowerCase();
+                    if (statusLower.includes('scheduled')) return 'text-primary';
+                    if (statusLower.includes('active') || statusLower.includes('en-route')) return 'text-success';
+                    if (statusLower.includes('landed')) return 'text-info';
+                    if (statusLower.includes('cancelled')) return 'text-danger';
+                    if (statusLower.includes('delayed')) return 'text-warning';
+                    if (statusLower.includes('diverted')) return 'text-warning';
+                    return 'text-secondary';
+                }
+                
+                const departureDelay = calculateDelay(flight.scheduled_departure, flight.actual_departure);
+                const arrivalDelay = calculateDelay(flight.scheduled_arrival, flight.actual_arrival);
+                const statusClass = getStatusClass(flight.status);
+                
+                // Check if we have map coordinates
+                const hasMapData = flight.departure_lat && flight.departure_lon && 
+                                  flight.arrival_lat && flight.arrival_lon;
+                
+                return `
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">
+                                ${flight.airline ? `${flight.airline} ` : ''}
+                                ${flight.flight_number}
+                            </h5>
+                            <div class="small ${statusClass}">
+                                <i class="fas fa-circle me-1"></i>
+                                ${flight.status || 'Unknown Status'}
+                            </div>
+                        </div>
+                        <div class="d-flex">
+                            <a href="https://flightaware.com/live/flight/${flight.flight_number}" 
+                               class="btn btn-sm btn-outline-info me-2" 
+                               target="_blank" 
+                               title="View on FlightAware">
+                                <i class="fas fa-external-link-alt me-1"></i>
+                                FlightAware
+                            </a>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="refreshSingleFlight('${flight.flight_number}')">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3">
+                                <div class="alert alert-secondary mb-0">
+                                    <div>
+                                        <strong>From:</strong> ${flight.departure_airport || 'N/A'}
+                                    </div>
+                                    <div>
+                                        <small>${formatDateTime(flight.scheduled_departure)}</small>
+                                    </div>
+                                    <div class="mt-1">
+                                        ${formatDelay(departureDelay)}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="alert alert-secondary mb-0">
+                                    <div>
+                                        <strong>To:</strong> ${flight.arrival_airport || 'N/A'}
+                                    </div>
+                                    <div>
+                                        <small>${formatDateTime(flight.scheduled_arrival)}</small>
+                                    </div>
+                                    <div class="mt-1">
+                                        ${formatDelay(arrivalDelay)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${hasMapData ? 
+                            `<div class="map-container mb-3" id="${mapContainerId}" style="height: 250px;"></div>` : 
+                            `<div class="alert alert-secondary text-center mb-3">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                Map unavailable: No coordinate data
+                            </div>`
+                        }
+                        
+                        ${(flight.altitude || flight.speed) ? `
+                        <div class="row mb-3">
+                            ${flight.altitude ? `
+                            <div class="col-md-6 mb-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-arrow-up me-2"></i>
+                                    <div>
+                                        <div class="text-muted small">Altitude</div>
+                                        <div><strong>${flight.altitude.toLocaleString()} ft</strong></div>
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            ${flight.speed ? `
+                            <div class="col-md-6 mb-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-tachometer-alt me-2"></i>
+                                    <div>
+                                        <div class="text-muted small">Speed</div>
+                                        <div><strong>${flight.speed.toLocaleString()} km/h</strong></div>
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        ` : ''}
+                        
+                        <div class="text-end">
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                Last updated: ${formatDateTime(flight.last_updated)}
+                            </small>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Initialize map for a specific flight
+            function initFlightMap(flight, mapContainerId) {
+                // Check if we should display the map based on toggle state
+                const mapToggle = document.getElementById('mapToggle');
+                const mapContainer = document.getElementById(mapContainerId);
+                
+                if (!mapContainer) return;
+                
+                // Apply map toggle setting
+                if (!mapToggle.checked) {
+                    mapContainer.style.display = 'none';
+                }
+                
+                // Check if we have map data
+                if (!flight.departure_lat || !flight.departure_lon || 
+                    !flight.arrival_lat || !flight.arrival_lon) {
+                    return;
+                }
+                
+                // Initialize the map
+                const map = L.map(mapContainerId).setView([20, 0], 2);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
                     // Create custom airport marker icon
                     const airportIcon = L.divIcon({
                         html: '<i class="fas fa-map-marker-alt fa-2x text-info"></i>',
@@ -587,11 +825,35 @@
                     
                     // Fit map bounds
                     map.fitBounds(latlngs, { padding: [50, 50], maxZoom: 10 });
-                } else if (map && (flight.departure_lat && flight.departure_lon)) {
+                } else if (flight.departure_lat && flight.departure_lon) {
                     map.setView([flight.departure_lat, flight.departure_lon], 6);
-                } else if (map && (flight.arrival_lat && flight.arrival_lon)) {
+                } else if (flight.arrival_lat && flight.arrival_lon) {
                     map.setView([flight.arrival_lat, flight.arrival_lon], 6);
                 }
+            }
+            
+            // Function to refresh a single flight
+            function refreshSingleFlight(flightNumber) {
+                fetch(`/api/flights/update/${flightNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove existing card
+                        const existingCard = document.getElementById(`flight-card-${flightNumber}`);
+                        if (existingCard) {
+                            existingCard.remove();
+                        }
+                        
+                        // Add updated card
+                        addFlightDetailCard(data.flight);
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to update flight data'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing flight:', error);
+                });
+            }
             }
             
             // Refresh flight function
