@@ -114,26 +114,69 @@ def add_flight():
 def remove_flight(flight_number):
     """Remove a flight from tracking"""
     try:
-        flight = SavedFlight.query.filter_by(flight_number=flight_number).first()
-        if flight:
-            db.session.delete(flight)
-            # Also remove any detailed flight data
-            flight_details = Flight.query.filter_by(flight_number=flight_number).first()
-            if flight_details:
-                db.session.delete(flight_details)
-            db.session.commit()
-            return jsonify({
-                'success': True,
-                'message': 'Flight removed successfully'
-            }), 200
-        else:
+        logger.info(f"Attempting to remove flight: {flight_number}")
+        
+        # First get the flight to make sure it exists
+        saved_flight = SavedFlight.query.filter_by(flight_number=flight_number).first()
+        
+        if not saved_flight:
+            logger.warning(f"Flight {flight_number} not found for removal")
             return jsonify({
                 'success': False,
                 'error': 'Flight not found'
             }), 404
+        
+        # Get the flight ID to log it
+        flight_id = saved_flight.id
+        logger.info(f"Found flight {flight_number} with ID {flight_id} for removal")
+        
+        # Try to delete from saved flights
+        try:
+            db.session.delete(saved_flight)
+            logger.info(f"Deleted flight {flight_number} from saved_flights table")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error deleting flight {flight_number} from saved_flights: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'Database error when removing saved flight: {str(e)}'
+            }), 500
+        
+        # Also try to remove any detailed flight data
+        try:
+            flight_details = Flight.query.filter_by(flight_number=flight_number).first()
+            if flight_details:
+                flight_details_id = flight_details.id
+                db.session.delete(flight_details)
+                logger.info(f"Deleted flight details for {flight_number} with ID {flight_details_id}")
+            else:
+                logger.info(f"No flight details found for {flight_number}")
+        except Exception as e:
+            # Don't rollback here, we still want to commit the saved_flight deletion
+            logger.error(f"Error deleting flight details for {flight_number}: {str(e)}")
+            # We continue anyway since the saved flight is what matters most
+        
+        # Commit the transaction
+        try:
+            db.session.commit()
+            logger.info(f"Successfully committed deletion of flight {flight_number}")
+            return jsonify({
+                'success': True,
+                'message': 'Flight removed successfully',
+                'flight_number': flight_number
+            }), 200
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error committing deletion of flight {flight_number}: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'Database error when committing: {str(e)}'
+            }), 500
+            
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error removing flight: {str(e)}")
+        logger.error(f"Unexpected error removing flight {flight_number}: {str(e)}")
+        logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'error': 'Failed to remove flight',

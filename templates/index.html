@@ -439,19 +439,43 @@
             function removeFlight(flightNumber) {
                 if (confirm(`Are you sure you want to remove flight ${flightNumber}?`)) {
                     console.log('Removing flight:', flightNumber);
+                    
+                    // Make the remove flight button show as in progress
+                    const allRemoveButtons = document.querySelectorAll('.remove-flight');
+                    allRemoveButtons.forEach(btn => {
+                        if (btn.closest('.flight-card') && 
+                            btn.closest('.flight-card').dataset.flightNumber === flightNumber) {
+                            btn.disabled = true;
+                            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        }
+                    });
+                    
                     fetch(`/api/flights/remove/${flightNumber}`, {
                         method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
                     })
                     .then(response => {
                         console.log('Remove flight response status:', response.status);
                         if (!response.ok) {
-                            throw new Error(`HTTP error: ${response.status}`);
+                            if (response.status === 502) {
+                                throw new Error('Server disconnected. Please try again.');
+                            } else {
+                                throw new Error(`HTTP error: ${response.status}`);
+                            }
                         }
                         return response.json();
                     })
                     .then(data => {
                         console.log('Remove flight response data:', data);
                         if (data.success) {
+                            // First remove the flight card from the list
+                            const listCard = document.querySelector(`.flight-card[data-flight-number="${flightNumber}"]`);
+                            if (listCard) {
+                                listCard.remove();
+                            }
+                            
                             // Remove the flight's detail card if it exists
                             const flightCard = document.getElementById(`flight-card-${flightNumber}`);
                             if (flightCard) {
@@ -474,12 +498,36 @@
                             
                             // Refresh the flights list
                             fetchFlights();
+                            
+                            // Show a success message
+                            const alertEl = document.createElement('div');
+                            alertEl.className = 'alert alert-success alert-dismissible fade show';
+                            alertEl.innerHTML = `
+                                Flight ${flightNumber} removed successfully
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            `;
+                            document.querySelector('.container').prepend(alertEl);
+                            
+                            // Auto-dismiss after 3 seconds
+                            setTimeout(() => {
+                                alertEl.remove();
+                            }, 3000);
                         } else {
                             alert('Error: ' + (data.error || 'Failed to remove flight'));
                         }
                     })
                     .catch(error => {
                         console.error('Error removing flight:', error);
+                        alert('Error: ' + error.message);
+                        
+                        // Reset remove buttons
+                        allRemoveButtons.forEach(btn => {
+                            if (btn.closest('.flight-card') && 
+                                btn.closest('.flight-card').dataset.flightNumber === flightNumber) {
+                                btn.disabled = false;
+                                btn.innerHTML = '<i class="fas fa-times"></i>';
+                            }
+                        });
                     });
                 }
             }
