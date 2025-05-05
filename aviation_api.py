@@ -48,29 +48,63 @@ def get_flight_data(flight_number):
         if not data.get("data") or len(data["data"]) == 0:
             return {"error": "Flight not found"}
         
-        # Extract flight information from the first result
-        flight_info = data["data"][0]
+        # For debugging
+        logger.debug(f"API response data: {data}")
         
-        # Format the return data
-        formatted_data = {
-            "flight_number": flight_info.get("flight", {}).get("iata"),
-            "airline": flight_info.get("airline", {}).get("name"),
-            "departure_airport": flight_info.get("departure", {}).get("iata"),
-            "arrival_airport": flight_info.get("arrival", {}).get("iata"),
-            "scheduled_departure": format_date(flight_info.get("departure", {}).get("scheduled")),
-            "scheduled_arrival": format_date(flight_info.get("arrival", {}).get("scheduled")),
-            "actual_departure": format_date(flight_info.get("departure", {}).get("actual")),
-            "actual_arrival": format_date(flight_info.get("arrival", {}).get("actual")),
-            "status": flight_info.get("flight_status"),
-            "departure_lat": flight_info.get("departure", {}).get("latitude"),
-            "departure_lon": flight_info.get("departure", {}).get("longitude"),
-            "arrival_lat": flight_info.get("arrival", {}).get("latitude"),
-            "arrival_lon": flight_info.get("arrival", {}).get("longitude"),
-            "current_lat": flight_info.get("live", {}).get("latitude"),
-            "current_lon": flight_info.get("live", {}).get("longitude"),
-            "altitude": flight_info.get("live", {}).get("altitude"),
-            "speed": flight_info.get("live", {}).get("speed_horizontal")
-        }
+        try:
+            # Extract flight information from the first result
+            flight_info = data["data"][0]
+            
+            # For debugging
+            logger.debug(f"Flight info: {flight_info}")
+            
+            # Safely get nested values
+            def safe_get(obj, *keys):
+                try:
+                    for key in keys:
+                        if obj is None:
+                            return None
+                        obj = obj.get(key)
+                    return obj
+                except (AttributeError, KeyError, TypeError):
+                    return None
+            
+            # Format the return data
+            formatted_data = {
+                "flight_number": safe_get(flight_info, "flight", "iata") or flight_number,
+                "airline": safe_get(flight_info, "airline", "name"),
+                "departure_airport": safe_get(flight_info, "departure", "iata"),
+                "arrival_airport": safe_get(flight_info, "arrival", "iata"),
+                "scheduled_departure": format_date(safe_get(flight_info, "departure", "scheduled")),
+                "scheduled_arrival": format_date(safe_get(flight_info, "arrival", "scheduled")),
+                "actual_departure": format_date(safe_get(flight_info, "departure", "actual")),
+                "actual_arrival": format_date(safe_get(flight_info, "arrival", "actual")),
+                "status": flight_info.get("flight_status"),
+                "departure_lat": safe_get(flight_info, "departure", "latitude"),
+                "departure_lon": safe_get(flight_info, "departure", "longitude"),
+                "arrival_lat": safe_get(flight_info, "arrival", "latitude"),
+                "arrival_lon": safe_get(flight_info, "arrival", "longitude"),
+                "current_lat": safe_get(flight_info, "live", "latitude"),
+                "current_lon": safe_get(flight_info, "live", "longitude"),
+                "altitude": safe_get(flight_info, "live", "altitude"),
+                "speed": safe_get(flight_info, "live", "speed_horizontal")
+            }
+            
+            # Check if we got any meaningful data
+            has_data = any([
+                formatted_data["airline"],
+                formatted_data["departure_airport"],
+                formatted_data["arrival_airport"],
+                formatted_data["scheduled_departure"],
+                formatted_data["scheduled_arrival"],
+                formatted_data["status"]
+            ])
+            
+            if not has_data:
+                return {"error": "No flight data available for this flight number"}
+        except Exception as e:
+            logger.error(f"Error processing flight data: {str(e)}")
+            return {"error": f"Error processing flight data: {str(e)}"}
         
         return formatted_data
         
