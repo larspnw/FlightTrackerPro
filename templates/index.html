@@ -147,6 +147,7 @@
             
             // Add flight function
             function addFlight(flightNumber) {
+                console.log('Adding flight:', flightNumber);
                 fetch('/api/flights/add', {
                     method: 'POST',
                     headers: {
@@ -154,8 +155,15 @@
                     },
                     body: JSON.stringify({ flight_number: flightNumber }),
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Add flight response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Add flight response data:', data);
                     if (data.success) {
                         document.getElementById('flightNumber').value = '';
                         fetchFlights();
@@ -179,9 +187,17 @@
             
             // Fetch flights function
             function fetchFlights() {
+                console.log('Fetching flights...');
                 fetch('/api/flights')
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Flights data:', data);
                     if (data.success) {
                         const flightsList = document.getElementById('flightsList');
                         const emptyState = document.querySelector('.empty-state');
@@ -320,11 +336,19 @@
             // Remove flight function
             function removeFlight(flightNumber) {
                 if (confirm(`Are you sure you want to remove flight ${flightNumber}?`)) {
+                    console.log('Removing flight:', flightNumber);
                     fetch(`/api/flights/remove/${flightNumber}`, {
                         method: 'DELETE',
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        console.log('Remove flight response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
+                        console.log('Remove flight response data:', data);
                         if (data.success) {
                             // Remove the flight's detail card if it exists
                             const flightCard = document.getElementById(`flight-card-${flightNumber}`);
