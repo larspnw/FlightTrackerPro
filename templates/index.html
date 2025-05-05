@@ -283,15 +283,32 @@
                                     </div>
                                 `;
                                 li.addEventListener('click', function(e) {
-                                    if (!e.target.closest('.remove-flight')) {
+                                    // Don't select flight if clicking on a button or link
+                                    if (!e.target.closest('.remove-flight') && !e.target.closest('a') && 
+                                        !e.target.closest('button') && !e.target.closest('.btn')) {
                                         selectFlight(flight.flight_number);
                                     }
                                 });
                                 
-                                li.querySelector('.remove-flight').addEventListener('click', function(e) {
-                                    e.stopPropagation();
-                                    removeFlight(flight.flight_number);
-                                });
+                                // Explicitly handle button clicks
+                                const removeBtn = li.querySelector('.remove-flight');
+                                if (removeBtn) {
+                                    removeBtn.addEventListener('click', function(e) {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        console.log('Remove button clicked for flight:', flight.flight_number);
+                                        removeFlight(flight.flight_number);
+                                    });
+                                }
+                                
+                                // Make sure FlightAware link works
+                                const flightAwareLink = li.querySelector('a[href*="flightaware.com"]');
+                                if (flightAwareLink) {
+                                    flightAwareLink.addEventListener('click', function(e) {
+                                        e.stopPropagation();
+                                        // Let the default link behavior continue
+                                    });
+                                }
                                 
                                 flightsList.appendChild(li);
                             });

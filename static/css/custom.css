@@ -61,6 +61,18 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Make buttons in flight cards more visible */
+.flight-card .btn {
+  z-index: 10;
+  position: relative;
+}
+
+.flight-card .btn-outline-info,
+.flight-card .btn-outline-danger {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
 .flight-card.active {
   border-left: 4px solid var(--bs-primary);
   background-color: rgba(var(--bs-primary-rgb), 0.1);
